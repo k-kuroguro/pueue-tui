@@ -56,7 +56,7 @@ impl App {
 
    pub async fn run(&mut self) -> color_eyre::Result<()> {
       let mut tui = Tui::new()?
-         // .mouse(true) // uncomment this line to enable mouse support
+         .mouse(true) // uncomment this line to enable mouse support
          .tick_rate(self.tick_rate)
          .frame_rate(self.frame_rate);
       tui.enter()?;

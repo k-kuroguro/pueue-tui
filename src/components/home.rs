@@ -1,4 +1,4 @@
-use ratatui::{prelude::*, widgets::*};
+use ratatui::{layout::Rows, prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::Component;
@@ -34,10 +34,28 @@ impl Component for Home {
    }
 
    fn draw(&mut self, frame: &mut Frame, area: Rect) -> color_eyre::Result<()> {
-      frame.render_widget(
-         Paragraph::new(format!("hello world, elapsed: {}", self.elapsed_tick)),
-         area,
-      );
+      let rows = [
+         Row::new(vec!["Cell1", "Cell2", "Cell3"]),
+         Row::new(vec!["Data1", "Data2", "Data3"]),
+      ];
+      let widths = vec![
+         Constraint::Percentage(33),
+         Constraint::Percentage(33),
+         Constraint::Percentage(34),
+      ];
+      let table = Table::new(rows, widths)
+         .style(Style::new().blue())
+         .header(
+            Row::new(vec!["Col1", "Col2", "Col3"])
+               .style(Style::new().bold())
+               // To add space between the header and the rest of the rows, specify the margin
+               .bottom_margin(1),
+         )
+         .footer(Row::new(vec!["Updated on Dec 28"]))
+         .block(Block::new().title(" Table ").borders(Borders::ALL))
+         .row_highlight_style(Style::new().reversed())
+         .highlight_symbol(">>");
+      frame.render_widget(table, area);
       Ok(())
    }
 }
