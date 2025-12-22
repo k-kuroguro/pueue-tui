@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use color_eyre::eyre::eyre;
+use crossterm::{
+   event::{KeyCode, KeyEvent, KeyModifiers},
+   terminal,
+};
 use ratatui::prelude::Rect;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -60,9 +64,9 @@ impl App {
       })
    }
 
-   pub async fn run(&mut self) -> color_eyre::Result<()> {
-      let mut tui = Tui::new()?
-         .mouse(true) // uncomment this line to enable mouse support
+   pub async fn run(&mut self, terminal: ratatui::DefaultTerminal) -> color_eyre::Result<()> {
+      let mut tui = Tui::new(terminal)?
+         .mouse(true)
          .tick_rate(self.tick_rate)
          .frame_rate(self.frame_rate);
       tui.enter()?;

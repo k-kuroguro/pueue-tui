@@ -15,7 +15,7 @@ use crossterm::{
    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
 };
 use futures::{FutureExt, StreamExt};
-use ratatui::backend::CrosstermBackend as Backend;
+use ratatui::{DefaultTerminal, backend::CrosstermBackend as Backend};
 use serde::{Deserialize, Serialize};
 use tokio::{
    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -53,10 +53,10 @@ pub struct Tui {
 }
 
 impl Tui {
-   pub fn new() -> color_eyre::Result<Self> {
+   pub fn new(terminal: ratatui::DefaultTerminal) -> color_eyre::Result<Self> {
       let (event_tx, event_rx) = mpsc::unbounded_channel();
       Ok(Self {
-         terminal: ratatui::Terminal::new(Backend::new(stdout()))?,
+         terminal,
          task: tokio::spawn(async {}),
          cancellation_token: CancellationToken::new(),
          event_rx,
