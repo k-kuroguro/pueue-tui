@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use color_eyre::eyre::{WrapErr, bail};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use pueue_lib::{
-   Request, Response, Settings, network::socket::ConnectionSettings, secret::read_shared_secret,
-};
 use ratatui::prelude::Rect;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -20,6 +16,7 @@ use crate::{
 pub struct App {
    tick_rate: f64,
    frame_rate: f64,
+   status_reload_rate: f64, // Added field
    components: Vec<Box<dyn Component>>,
    should_quit: bool,
    mode: Mode,
@@ -42,6 +39,7 @@ impl App {
       Ok(Self {
          tick_rate: 4.0,
          frame_rate: 60.0,
+         status_reload_rate: 1.0,
          components: vec![Box::new(Home::new())],
          should_quit: false,
          mode: Mode::Home,
@@ -69,6 +67,24 @@ impl App {
          .frame_rate(self.frame_rate);
       tui.enter()?;
 
+      let status_action_tx = self.action_tx.clone();
+      let status_client = self.client.clone();
+      let status_reload_duration = std::time::Duration::from_secs_f64(self.status_reload_rate);
+      tokio::spawn(async move {
+         loop {
+            match status_client.status().await {
+               Ok(state) => {
+                  let _ = status_action_tx.send(Action::UpdateStatus(state));
+               }
+               Err(e) => {
+                  let _ = status_action_tx
+                     .send(Action::Error(format!("Failed to fetch status: {:?}", e)));
+               }
+            }
+            tokio::time::sleep(status_reload_duration).await;
+         }
+      });
+
       for component in self.components.iter_mut() {
          component.register_action_handler(self.action_tx.clone())?;
       }
@@ -95,16 +111,7 @@ impl App {
       let action_tx = self.action_tx.clone();
       match event {
          Event::Quit => action_tx.send(Action::Quit)?,
-         Event::Tick => {
-            action_tx.send(Action::Tick)?;
-            //TODO: これbackgroundのほうがいいかも
-            let state = self
-               .client
-               .status()
-               .await
-               .wrap_err("Failed to fetch status from daemon.")?;
-            action_tx.send(Action::UpdateStatus(state))?;
-         }
+         Event::Tick => action_tx.send(Action::Tick)?,
          Event::Render => action_tx.send(Action::Render)?,
          Event::Resize(x, y) => action_tx.send(Action::Resize(x, y))?,
          Event::Key(key) => self.handle_key_event(key)?,

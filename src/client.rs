@@ -1,4 +1,8 @@
-use std::path::PathBuf;
+use std::{
+   path::PathBuf,
+   sync::Arc,
+};
+use tokio::sync::Mutex;
 
 use color_eyre::eyre::{WrapErr, bail};
 use pueue_lib::{
@@ -7,8 +11,9 @@ use pueue_lib::{
    secret::read_shared_secret,
 };
 
+#[derive(Clone)]
 pub struct Client {
-   connection: network::Client,
+   connection: Arc<Mutex<network::Client>>,
 }
 
 impl Client {
@@ -33,12 +38,15 @@ impl Client {
          .await
          .context("Failed to initialize client.")?;
 
-      Ok(Self { connection })
+      Ok(Self {
+         connection: Arc::new(Mutex::new(connection)),
+      })
    }
 
-   pub async fn status(&mut self) -> color_eyre::Result<State> {
-      self.connection.send_request(Request::Status).await?;
-      let response = self.connection.receive_response().await?;
+   pub async fn status(&self) -> color_eyre::Result<State> {
+      let mut connection = self.connection.lock().await;
+      connection.send_request(Request::Status).await?;
+      let response = connection.receive_response().await?;
 
       match response {
          Response::Status(state) => Ok(*state),
