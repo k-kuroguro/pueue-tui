@@ -1,12 +1,18 @@
 use std::collections::HashMap;
 
+use color_eyre::eyre::{WrapErr, bail};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use pueue_lib::{
+   Request, Response, Settings, network::socket::ConnectionSettings, secret::read_shared_secret,
+};
 use ratatui::prelude::Rect;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
    action::Action,
+   cli::CliArgs,
+   client::Client,
    components::{Component, home::Home},
    tui::{Event, Tui},
 };
@@ -21,6 +27,7 @@ pub struct App {
    action_tx: mpsc::UnboundedSender<Action>,
    action_rx: mpsc::UnboundedReceiver<Action>,
    keymaps: HashMap<Mode, HashMap<Vec<KeyEvent>, Action>>,
+   client: Client,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -30,7 +37,7 @@ pub enum Mode {
 }
 
 impl App {
-   pub fn new() -> color_eyre::Result<Self> {
+   pub async fn new(opt: &CliArgs) -> color_eyre::Result<Self> {
       let (action_tx, action_rx) = mpsc::unbounded_channel();
       Ok(Self {
          tick_rate: 4.0,
@@ -51,6 +58,7 @@ impl App {
             map.insert(Mode::Home, home);
             map
          },
+         client: Client::new(&opt.config, &opt.profile).await?,
       })
    }
 
@@ -87,7 +95,16 @@ impl App {
       let action_tx = self.action_tx.clone();
       match event {
          Event::Quit => action_tx.send(Action::Quit)?,
-         Event::Tick => action_tx.send(Action::Tick)?,
+         Event::Tick => {
+            action_tx.send(Action::Tick)?;
+            //TODO: これbackgroundのほうがいいかも
+            let state = self
+               .client
+               .status()
+               .await
+               .wrap_err("Failed to fetch status from daemon.")?;
+            action_tx.send(Action::UpdateStatus(state))?;
+         }
          Event::Render => action_tx.send(Action::Render)?,
          Event::Resize(x, y) => action_tx.send(Action::Resize(x, y))?,
          Event::Key(key) => self.handle_key_event(key)?,
