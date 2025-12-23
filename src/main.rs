@@ -16,10 +16,7 @@ async fn main() -> color_eyre::Result<()> {
 
    let args = CliArgs::parse();
    let mut app = App::new(&args).await?;
-   let terminal = ratatui::init();
-   app.run(terminal).await?;
-
-   ratatui::restore();
+   app.run().await?;
 
    Ok(())
 }

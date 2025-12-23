@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use color_eyre::eyre::eyre;
-use crossterm::{
-   event::{KeyCode, KeyEvent, KeyModifiers},
-   terminal,
-};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::prelude::Rect;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -14,12 +10,10 @@ use crate::{
    cli::CliArgs,
    client::Client,
    components::{Component, home::Home},
-   tui::{Event, Tui},
+   tui::{Event, Tui, TuiConfig},
 };
 
 pub struct App {
-   tick_rate: f64,
-   frame_rate: f64,
    status_reload_rate: f64, // Added field
    components: Vec<Box<dyn Component>>,
    should_quit: bool,
@@ -29,6 +23,7 @@ pub struct App {
    action_rx: mpsc::UnboundedReceiver<Action>,
    keymaps: HashMap<Mode, HashMap<Vec<KeyEvent>, Action>>,
    client: Client,
+   tui_config: TuiConfig,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -41,8 +36,6 @@ impl App {
    pub async fn new(opt: &CliArgs) -> color_eyre::Result<Self> {
       let (action_tx, action_rx) = mpsc::unbounded_channel();
       Ok(Self {
-         tick_rate: 4.0,
-         frame_rate: 60.0,
          status_reload_rate: 1.0,
          components: vec![Box::new(Home::new())],
          should_quit: false,
@@ -61,14 +54,19 @@ impl App {
             map
          },
          client: Client::new(&opt.config, &opt.profile).await?,
+         tui_config: TuiConfig {
+            frame_rate: 60.0,
+            tick_rate: 4.0,
+            mouse: true,
+            paste: false,
+         },
       })
    }
 
-   pub async fn run(&mut self, terminal: ratatui::DefaultTerminal) -> color_eyre::Result<()> {
-      let mut tui = Tui::new(terminal)?
-         .mouse(true)
-         .tick_rate(self.tick_rate)
-         .frame_rate(self.frame_rate);
+   pub async fn run(&mut self) -> color_eyre::Result<()> {
+      self.set_panic_hook();
+
+      let mut tui = Tui::try_from(&self.tui_config)?;
       tui.enter()?;
 
       let status_action_tx = self.action_tx.clone();
@@ -189,6 +187,17 @@ impl App {
          }
       })?;
       Ok(())
+   }
+
+   fn set_panic_hook(&self) {
+      let hook = std::panic::take_hook();
+      let tui_config = self.tui_config.clone();
+      std::panic::set_hook(Box::new(move |info| {
+         if let Ok(mut t) = Tui::try_from(&tui_config) {
+            let _ = t.exit();
+         }
+         hook(info);
+      }));
    }
 }
 

@@ -100,6 +100,7 @@ impl Component for Home {
       let table = Table::new(rows, widths)
          .header(Row::new(vec!["Id", "Status", "Command", "Path"]).style(Style::new().bold()))
          .row_highlight_style(Style::new().blue().on_black());
+
       frame.render_stateful_widget(table, area, &mut self.table_state);
       frame.render_stateful_widget(
          Scrollbar::default()

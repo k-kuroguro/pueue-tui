@@ -1,5 +1,3 @@
-#![allow(dead_code)] // Remove this once you start using the code
-
 use std::{
    io::{Stdout, stdout},
    ops::{Deref, DerefMut},
@@ -15,7 +13,7 @@ use crossterm::{
    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
 };
 use futures::{FutureExt, StreamExt};
-use ratatui::{DefaultTerminal, backend::CrosstermBackend as Backend};
+use ratatui::backend::CrosstermBackend as Backend;
 use serde::{Deserialize, Serialize};
 use tokio::{
    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -40,6 +38,14 @@ pub enum Event {
    Resize(u16, u16),
 }
 
+#[derive(Clone)]
+pub struct TuiConfig {
+   pub frame_rate: f64,
+   pub tick_rate: f64,
+   pub mouse: bool,
+   pub paste: bool,
+}
+
 pub struct Tui {
    pub terminal: ratatui::Terminal<Backend<Stdout>>,
    pub task: JoinHandle<()>,
@@ -53,10 +59,10 @@ pub struct Tui {
 }
 
 impl Tui {
-   pub fn new(terminal: ratatui::DefaultTerminal) -> color_eyre::Result<Self> {
+   pub fn new() -> color_eyre::Result<Self> {
       let (event_tx, event_rx) = mpsc::unbounded_channel();
       Ok(Self {
-         terminal,
+         terminal: ratatui::Terminal::new(Backend::new(stdout()))?,
          task: tokio::spawn(async {}),
          cancellation_token: CancellationToken::new(),
          event_rx,
@@ -216,5 +222,17 @@ impl DerefMut for Tui {
 impl Drop for Tui {
    fn drop(&mut self) {
       self.exit().unwrap();
+   }
+}
+
+impl TryFrom<&TuiConfig> for Tui {
+   type Error = color_eyre::Report;
+
+   fn try_from(config: &TuiConfig) -> Result<Self, Self::Error> {
+      Ok(Tui::new()?
+         .frame_rate(config.frame_rate)
+         .tick_rate(config.tick_rate)
+         .mouse(config.mouse)
+         .paste(config.paste))
    }
 }
