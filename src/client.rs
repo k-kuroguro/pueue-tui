@@ -1,7 +1,4 @@
-use std::{
-   path::PathBuf,
-   sync::Arc,
-};
+use std::{path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
 use color_eyre::eyre::{WrapErr, bail};
@@ -52,5 +49,104 @@ impl Client {
          Response::Status(state) => Ok(*state),
          _ => unreachable!(),
       }
+   }
+}
+
+#[cfg(test)]
+mod tests {
+   use super::*;
+
+   use std::fs;
+
+   use tempfile::tempdir;
+   use testcontainers::{
+      ContainerAsync, GenericBuildableImage, GenericImage, ImageExt,
+      core::{BuildImageOptions, IntoContainerPort, WaitFor, wait::LogWaitStrategy},
+      runners::{AsyncBuilder, AsyncRunner},
+   };
+
+   fn create_config(
+      daemon_cert_path: &Option<PathBuf>,
+      shared_secret_path: &Option<PathBuf>,
+      port: u16,
+   ) -> String {
+      format!(
+         r#"
+shared:
+   use_unix_socket: false
+   host: 0.0.0.0
+   port: {}
+   daemon_cert: {}
+   shared_secret_path: {}
+"#,
+         port,
+         daemon_cert_path
+            .as_ref()
+            .map_or("null".to_string(), |p| p.to_string_lossy().to_string()),
+         shared_secret_path
+            .as_ref()
+            .map_or("null".to_string(), |p| p.to_string_lossy().to_string())
+      )
+   }
+
+   async fn create_container(
+      config_dir: PathBuf,
+   ) -> color_eyre::Result<(ContainerAsync<GenericImage>, PathBuf)> {
+      let image = GenericBuildableImage::new("pueue-tui-test", "latest")
+         .with_dockerfile_string(
+            r#"
+            FROM rust:latest
+            RUN cargo install --locked pueue
+            CMD ["pueued", "--config", "/root/.config/pueue/pueue.yaml", "-vvv"]
+         "#,
+         )
+         .build_image_with(BuildImageOptions::new().with_skip_if_exists(true))
+         .await?;
+
+      let container = image
+         .with_exposed_port(6924.tcp())
+         .with_wait_for(WaitFor::Log(LogWaitStrategy::stderr("Binding to address")))
+         .with_copy_to(
+            "/root/.config/pueue/pueue.yaml",
+            create_config(&None, &None, 6924).as_bytes().to_vec(),
+         )
+         .start()
+         .await?;
+
+      let port = container.get_host_port_ipv4(6924).await?;
+      let cert_path = config_dir.join("daemon.cert");
+      let secret_path = config_dir.join("shared_secret");
+      let config_path = config_dir.join("pueue.yaml");
+      container
+         .copy_file_from(
+            "/root/.local/share/pueue/certs/daemon.cert",
+            cert_path.clone(),
+         )
+         .await?;
+      container
+         .copy_file_from(
+            "/root/.local/share/pueue/shared_secret",
+            secret_path.clone(),
+         )
+         .await?;
+
+      fs::write(
+         &config_path,
+         create_config(&Some(cert_path), &Some(secret_path), port),
+      )?;
+
+      Ok((container, config_path))
+   }
+
+   #[tokio::test]
+   async fn test_client_initialization() {
+      let dir = tempdir().unwrap();
+      let (_container, config_path) = create_container(dir.path().to_path_buf())
+         .await
+         .expect("Failed to create container.");
+
+      let client = Client::new(&Some(config_path), &None).await;
+
+      assert!(client.is_ok());
    }
 }

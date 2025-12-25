@@ -24,6 +24,11 @@ serde_json = "1.0.132"
 tokio = { version = "1.40.0", features = ["full"] }
 tokio-util = "0.7.12"
 
+[dev-dependencies]
+pretty_assertions = "1.4.1"
+tempfile = "3.24.0"
+testcontainers = "0.26.3"
+
 [profile.release]
 codegen-units = 1
 lto = true
