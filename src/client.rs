@@ -139,6 +139,7 @@ shared:
    }
 
    #[tokio::test]
+   #[ignore = "Requires Docker and is slow."]
    async fn test_client_initialization() {
       let dir = tempdir().unwrap();
       let (_container, config_path) = create_container(dir.path().to_path_buf())
