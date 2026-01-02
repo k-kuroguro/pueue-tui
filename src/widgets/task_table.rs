@@ -206,7 +206,7 @@ impl StatefulWidget for TaskTable {
                .map(|hc| Cell::from(hc))
                .collect::<Vec<Cell>>(),
          ))
-         .row_highlight_style(Style::new().blue().on_black());
+         .row_highlight_style(Style::new().on_black());
 
       table.render(area, buf, state);
    }

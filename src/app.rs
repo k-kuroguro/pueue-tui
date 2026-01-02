@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub struct App {
-   status_reload_rate: f64, // Added field
+   status_reload_rate: f64,
    components: Vec<Box<dyn Component>>,
    should_quit: bool,
    mode: Mode,
