@@ -1,16 +1,19 @@
+use std::vec;
+
 use crossterm::event::{KeyEvent, KeyModifiers};
+use pueue_lib::Task;
 use ratatui::{prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::Component;
-use crate::action::Action;
+use crate::{action::Action, widgets::task_table::TaskTable};
 
 #[derive(Default)]
 pub struct Home {
    command_tx: Option<UnboundedSender<Action>>,
    table_state: TableState,
    scroll_state: ScrollbarState,
-   data: Vec<Vec<String>>,
+   tasks: Vec<Task>,
 }
 
 impl Home {
@@ -19,7 +22,7 @@ impl Home {
          command_tx: None,
          table_state: TableState::default().with_selected(0),
          scroll_state: ScrollbarState::new(0),
-         data: Vec::new(),
+         tasks: vec![],
       }
    }
 }
@@ -61,17 +64,8 @@ impl Component for Home {
          Action::Tick => {}
          Action::Render => {}
          Action::UpdateStatus(state) => {
-            let mut data = Vec::new();
-            for (_, task) in state.tasks.iter() {
-               data.push(vec![
-                  task.id.to_string(),
-                  task.status.to_string(),
-                  task.command.clone(),
-                  task.path.to_string_lossy().to_string(),
-               ]);
-            }
-            self.data = data;
-            self.scroll_state = self.scroll_state.content_length(self.data.len());
+            self.tasks = state.tasks.values().cloned().collect();
+            self.scroll_state = self.scroll_state; //.content_length(self.data.len());
          }
          _ => {}
       }
@@ -79,37 +73,16 @@ impl Component for Home {
    }
 
    fn draw(&mut self, frame: &mut Frame, area: Rect) -> color_eyre::Result<()> {
-      let max_id = self
-         .data
-         .iter()
-         .map(|item| item[0].len())
-         .max()
-         .unwrap_or(2)
-         .max(2);
-      let widths = vec![
-         Constraint::Length(max_id as u16 + 2),
-         Constraint::Percentage(25),
-         Constraint::Percentage(25),
-         Constraint::Percentage(25),
-      ];
-      let rows: Vec<Row> = self
-         .data
-         .iter()
-         .map(|item| Row::new(item.iter().cloned()))
-         .collect();
-      let table = Table::new(rows, widths)
-         .header(Row::new(vec!["Id", "Status", "Command", "Path"]).style(Style::new().bold()))
-         .row_highlight_style(Style::new().blue().on_black());
-
+      let table = TaskTable::new(&self.tasks);
       frame.render_stateful_widget(table, area, &mut self.table_state);
-      frame.render_stateful_widget(
-         Scrollbar::default()
-            .orientation(ScrollbarOrientation::VerticalRight)
-            .begin_symbol(None)
-            .end_symbol(None),
-         area,
-         &mut self.scroll_state,
-      );
+      // frame.render_stateful_widget(
+      //    Scrollbar::default()
+      //       .orientation(ScrollbarOrientation::VerticalRight)
+      //       .begin_symbol(None)
+      //       .end_symbol(None),
+      //    area,
+      //    &mut self.scroll_state,
+      // );
       Ok(())
    }
 }
@@ -119,7 +92,7 @@ impl Home {
       let i = match self.table_state.selected() {
          Some(i) => {
             if i == 0 {
-               self.data.len() - 1
+               self.tasks.len() - 1
             } else {
                i - 1
             }
@@ -133,7 +106,7 @@ impl Home {
    fn next_row(&mut self) {
       let i = match self.table_state.selected() {
          Some(i) => {
-            if i >= self.data.len() - 1 {
+            if i >= self.tasks.len() - 1 {
                0
             } else {
                i + 1

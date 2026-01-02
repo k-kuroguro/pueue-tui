@@ -9,6 +9,7 @@ mod cli;
 mod client;
 mod components;
 mod tui;
+mod widgets;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {

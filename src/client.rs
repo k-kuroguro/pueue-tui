@@ -56,7 +56,7 @@ impl Client {
 mod tests {
    use super::*;
 
-   use std::fs;
+   use std::{fs, path::PathBuf};
 
    use tempfile::tempdir;
    use testcontainers::{
