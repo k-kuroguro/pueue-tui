@@ -6,13 +6,18 @@ use ratatui::{prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::Component;
-use crate::{action::Action, widgets::task_table::TaskTable};
+use crate::{
+   action::Action,
+   widgets::{
+      status_bar::StatusBar,
+      task_table::{TaskTable, TaskTableState},
+   },
+};
 
 #[derive(Default)]
 pub struct Home {
    command_tx: Option<UnboundedSender<Action>>,
-   table_state: TableState,
-   scroll_state: ScrollbarState,
+   table_state: TaskTableState,
    tasks: Vec<Task>,
 }
 
@@ -20,8 +25,7 @@ impl Home {
    pub fn new() -> Self {
       Self {
          command_tx: None,
-         table_state: TableState::default().with_selected(0),
-         scroll_state: ScrollbarState::new(0),
+         table_state: (TableState::new().with_selected(0), ScrollbarState::new(0)),
          tasks: vec![],
       }
    }
@@ -40,7 +44,6 @@ impl Component for Home {
       let KeyEvent {
          code, modifiers, ..
       } = key;
-
       match modifiers {
          KeyModifiers::NONE => match code {
             crossterm::event::KeyCode::Down => {
@@ -65,7 +68,6 @@ impl Component for Home {
          Action::Render => {}
          Action::UpdateStatus(state) => {
             self.tasks = state.tasks.values().cloned().collect();
-            self.scroll_state = self.scroll_state; //.content_length(self.data.len());
          }
          _ => {}
       }
@@ -73,23 +75,21 @@ impl Component for Home {
    }
 
    fn draw(&mut self, frame: &mut Frame, area: Rect) -> color_eyre::Result<()> {
+      let [table_area, status_bar_area] =
+         Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(area);
+
       let table = TaskTable::new(&self.tasks);
-      frame.render_stateful_widget(table, area, &mut self.table_state);
-      // frame.render_stateful_widget(
-      //    Scrollbar::default()
-      //       .orientation(ScrollbarOrientation::VerticalRight)
-      //       .begin_symbol(None)
-      //       .end_symbol(None),
-      //    area,
-      //    &mut self.scroll_state,
-      // );
+      let status_bar = StatusBar::new("Quit : q");
+
+      frame.render_stateful_widget(table, table_area, &mut self.table_state);
+      frame.render_widget(status_bar, status_bar_area);
       Ok(())
    }
 }
 
 impl Home {
    fn prev_row(&mut self) {
-      let i = match self.table_state.selected() {
+      let i = match self.table_state.0.selected() {
          Some(i) => {
             if i == 0 {
                self.tasks.len() - 1
@@ -99,12 +99,12 @@ impl Home {
          }
          None => 0,
       };
-      self.table_state.select(Some(i));
-      self.scroll_state = self.scroll_state.position(i * 1);
+      self.table_state.0.select(Some(i));
+      self.table_state.1 = self.table_state.1.position(i * 1);
    }
 
    fn next_row(&mut self) {
-      let i = match self.table_state.selected() {
+      let i = match self.table_state.0.selected() {
          Some(i) => {
             if i >= self.tasks.len() - 1 {
                0
@@ -114,7 +114,7 @@ impl Home {
          }
          None => 0,
       };
-      self.table_state.select(Some(i));
-      self.scroll_state = self.scroll_state.position(i * 1);
+      self.table_state.0.select(Some(i));
+      self.table_state.1 = self.table_state.1.position(i * 1);
    }
 }

@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, ValueHint};
 
-#[derive(Parser, Debug)]
-#[command(version = version())]
+#[derive(Debug, Parser)]
+#[command(version)]
 pub struct CliArgs {
    /// If provided, pueue-tui only uses this config file.
    ///
@@ -17,8 +17,8 @@ pub struct CliArgs {
    pub profile: Option<String>,
 }
 
-const VERSION_MESSAGE: &str = env!("CARGO_PKG_VERSION");
-
-fn version() -> String {
-   VERSION_MESSAGE.to_string()
+impl CliArgs {
+   pub fn parse() -> Self {
+      <Self as Parser>::parse()
+   }
 }

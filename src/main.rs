@@ -1,5 +1,3 @@
-use clap::Parser;
-
 use crate::app::App;
 use crate::cli::CliArgs;
 

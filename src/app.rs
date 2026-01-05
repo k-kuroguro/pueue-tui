@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::prelude::Rect;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, time::sleep};
 
 use crate::{
    action::Action,
@@ -71,7 +71,7 @@ impl App {
 
       let status_action_tx = self.action_tx.clone();
       let status_client = self.client.clone();
-      let status_reload_duration = std::time::Duration::from_secs_f64(self.status_reload_rate);
+      let status_reload_duration = Duration::from_secs_f64(self.status_reload_rate);
       tokio::spawn(async move {
          loop {
             match status_client.status().await {
@@ -83,7 +83,7 @@ impl App {
                      .send(Action::Error(format!("Failed to fetch status: {:?}", e)));
                }
             }
-            tokio::time::sleep(status_reload_duration).await;
+            sleep(status_reload_duration).await;
          }
       });
 
