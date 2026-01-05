@@ -8,6 +8,8 @@ use ratatui::{
    },
 };
 
+//TODO: truncate long command and path strings with "..."
+
 #[derive(Clone)]
 enum HeaderCell {
    Id,

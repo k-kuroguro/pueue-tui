@@ -47,7 +47,7 @@ impl Widget for StatusBar {
                ELLIPSIS.to_string()
             } else {
                let keep = (available - ELLIPSIS_LEN) as usize;
-               let s: String = self.left.chars().take(keep).collect();
+               let s: String = self.left.chars().take(keep).collect(); //TODO: use unicode-width crate for better handling
                format!("{s}{ELLIPSIS}")
             }
          }
