@@ -2193,6 +2193,7 @@ dependencies = [
  "ratatui",
  "serde",
  "serde_json",
+ "snap",
  "tempfile",
  "testcontainers",
  "tokio",

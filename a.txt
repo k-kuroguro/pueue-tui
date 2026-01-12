@@ -1,0 +1,24 @@
+Failed to fetch log for task 32: 
+   0: [91mUnexpected response type: Failure("Failed reading process output file: IoPathError(\"/home/kuroguro/.local/share/pueue/task_logs/32.log\", \"getting log file handle\", Os { code: 2, kind: NotFound, message: \"No such file or directory\" })")[0m
+
+Location:
+   [35msrc/client.rs[0m:[35m84[0m
+
+Backtrace omitted. Run with RUST_BACKTRACE=1 environment variable to display it.
+Run with RUST_BACKTRACE=full to include source snippets.
+Failed to fetch log for task 35: 
+   0: [91mUnexpected response type: Failure("Failed reading process output file: IoPathError(\"/home/kuroguro/.local/share/pueue/task_logs/35.log\", \"getting log file handle\", Os { code: 2, kind: NotFound, message: \"No such file or directory\" })")[0m
+
+Location:
+   [35msrc/client.rs[0m:[35m84[0m
+
+Backtrace omitted. Run with RUST_BACKTRACE=1 environment variable to display it.
+Run with RUST_BACKTRACE=full to include source snippets.
+Failed to fetch log for task 36: 
+   0: [91mUnexpected response type: Failure("Failed reading process output file: IoPathError(\"/home/kuroguro/.local/share/pueue/task_logs/36.log\", \"getting log file handle\", Os { code: 2, kind: NotFound, message: \"No such file or directory\" })")[0m
+
+Location:
+   [35msrc/client.rs[0m:[35m84[0m
+
+Backtrace omitted. Run with RUST_BACKTRACE=1 environment variable to display it.
+Run with RUST_BACKTRACE=full to include source snippets.

@@ -9,6 +9,8 @@ mod components;
 mod tui;
 mod widgets;
 
+mod logger;
+
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
    color_eyre::install()?;

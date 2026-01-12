@@ -1,9 +1,10 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{fmt::format, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
-use color_eyre::eyre::{WrapErr, bail};
+use color_eyre::eyre::{WrapErr, bail, eyre};
 use pueue_lib::{
    Request, Response, Settings, State,
+   message::{LogRequest, TaskSelection},
    network::{self, socket::ConnectionSettings},
    secret::read_shared_secret,
 };
@@ -41,12 +42,46 @@ impl Client {
    }
 
    pub async fn status(&self) -> color_eyre::Result<State> {
-      let mut connection = self.connection.lock().await;
-      connection.send_request(Request::Status).await?;
-      let response = connection.receive_response().await?;
+      let response = {
+         let mut connection = self.connection.lock().await;
+
+         connection.send_request(Request::Status).await?;
+         connection.receive_response().await?
+      };
 
       match response {
          Response::Status(state) => Ok(*state),
+         _ => unreachable!(),
+      }
+   }
+
+   pub async fn log(&self, task_id: usize) -> color_eyre::Result<Arc<[u8]>> {
+      let response = {
+         let mut connection = self.connection.lock().await;
+
+         let request = Request::Log(LogRequest {
+            tasks: TaskSelection::TaskIds(vec![task_id]),
+            send_logs: true,
+            lines: None,
+         });
+
+         connection.send_request(request).await?;
+         connection.receive_response().await?
+      };
+
+      match response {
+         Response::Log(log) => {
+            let task_log = log
+               .get(&task_id)
+               .expect("Log response must contain the requested task id.");
+
+            if let Some(output) = &task_log.output {
+               Ok(Arc::from(output.as_slice()))
+            } else {
+               Ok(Arc::from([]))
+            }
+         }
+         Response::Failure(msg) => Err(eyre!("Failed to get log: {}", msg)),
          _ => unreachable!(),
       }
    }

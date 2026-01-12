@@ -1,5 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
+use color_eyre::eyre::bail;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::prelude::Rect;
 use serde::{Deserialize, Serialize};
@@ -159,6 +160,21 @@ impl App {
             Action::Quit => self.should_quit = true,
             Action::Resize(w, h) => self.handle_resize(tui, w, h)?,
             Action::Render => self.render(tui)?,
+            Action::RequestLog(id) => {
+               let client = self.client.clone();
+               let action_tx = self.action_tx.clone();
+               tokio::spawn(async move {
+                  match client.log(id).await {
+                     Ok(log) => {
+                        let _ = action_tx.send(Action::UpdateLog(id, log));
+                     }
+                     Err(e) => {
+                        let _ =
+                           action_tx.send(Action::Error(format!("Failed to fetch log: {:?}", e)));
+                     }
+                  }
+               });
+            }
             _ => {}
          }
          for component in self.components.iter_mut() {

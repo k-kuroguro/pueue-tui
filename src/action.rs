@@ -1,12 +1,17 @@
-use pueue_lib::State;
-use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+use pueue_lib::State;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
    Tick,
    Render,
    Resize(u16, u16),
    Quit,
    Error(String),
+
    UpdateStatus(State),
+   UpdateLog(usize, Arc<[u8]>),
+
+   RequestLog(usize),
 }

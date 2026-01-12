@@ -1,10 +1,13 @@
+use color_eyre::owo_colors::OwoColorize;
 use pueue_lib::{Task, TaskResult, TaskStatus};
 use ratatui::{
    buffer::Buffer,
-   layout::{Constraint, Layout, Rect},
-   style::Style,
+   layout::{Alignment, Constraint, Layout, Rect},
+   style::{Color, Style},
+   text::Text,
    widgets::{
-      Cell, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget, Table, TableState,
+      Cell, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget, Table,
+      TableState, Widget,
    },
 };
 
@@ -232,6 +235,17 @@ impl StatefulWidget for TaskTable {
    type State = TaskTableState;
 
    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+      if self.tasks.is_empty() {
+         let text = Text::from("No tasks to display").style(Style::new().bold());
+         let paragraph = Paragraph::new(text.clone());
+         let area = area.centered(
+            Constraint::Length(text.width() as u16),
+            Constraint::Length(1),
+         );
+         paragraph.render(area, buf);
+         return;
+      }
+
       (*state).1 = state.1.content_length(self.tasks.len());
 
       let header = Self::tasks_to_header(&self.tasks);
@@ -270,14 +284,15 @@ impl StatefulWidget for TaskTable {
                .collect::<Vec<Cell>>(),
          ))
          .column_spacing(2)
-         .row_highlight_style(Style::new().on_black());
-      table.render(table_area, buf, &mut state.0);
+         .row_highlight_style(Style::new().bg(Color::DarkGray).bold());
+
+      StatefulWidget::render(table, table_area, buf, &mut state.0);
 
       if let Some(scroll_bar_area) = scroll_bar_area {
          let scroll_bar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
             .begin_symbol(None)
             .end_symbol(None);
-         scroll_bar.render(scroll_bar_area, buf, &mut state.1);
+         StatefulWidget::render(scroll_bar, scroll_bar_area, buf, &mut state.1);
       }
    }
 }
