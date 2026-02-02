@@ -1,18 +1,15 @@
 use crate::app::App;
 use crate::cli::CliArgs;
 
-mod actors;
+mod action;
 mod app;
 mod cli;
-mod command;
-mod core;
-mod dispatcher;
-mod event;
-mod executor;
-mod keymap;
-mod tasks;
-mod terminal;
-mod ui;
+mod client;
+mod components;
+mod tui;
+mod widgets;
+
+mod logger;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
