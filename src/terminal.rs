@@ -9,7 +9,7 @@ use crossterm::{
    cursor,
    event::{
       DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
-      Event as CrosstermEvent, EventStream, KeyEvent, KeyEventKind, MouseEvent,
+      Event as CrosstermEvent, EventStream,
    },
    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -69,7 +69,7 @@ impl Terminal {
                   _ => continue,
                }
                Some(Err(e)) => Event::Error(eyre!(e)),
-               None => break, // the event stream has stopped and will not produce any more events
+               None => break, // The event stream has stopped and will not produce any more events.
              },
          };
          event.emit();

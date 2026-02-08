@@ -4,8 +4,9 @@ use std::{
 };
 
 use crate::{
-   actors::bootstrap::Bootstrap,
    cli::CliArgs,
+   command::Command,
+   commands::Bootstrap,
    core::Core,
    dispatcher::Dispatcher,
    event::{Event, NEED_RENDER},
@@ -19,22 +20,21 @@ const TERMINAL_OPTIONS: TerminalOptions = TerminalOptions {
 };
 
 pub struct App {
-   pub(crate) core: Core,
+   pub core: Core,
 }
 
 impl App {
    const MAX_EVENTS: usize = 50;
-   const FRAME_TIME: Duration = Duration::from_millis(1000 / 60); // 60 FPS
+   const FRAME_DURATION: Duration = Duration::from_millis(1000 / 60); // 60 FPS
 
-   pub async fn new(_options: &CliArgs) -> color_eyre::Result<Self> {
-      Ok(Self { core: Core::new() })
+   pub async fn new(options: &CliArgs) -> color_eyre::Result<Self> {
+      Ok(Self {
+         core: Core::new(options).await?,
+      })
    }
 
    pub async fn run(&mut self) -> color_eyre::Result<()> {
       Self::set_panic_hook();
-      
-      // Bootstrap: Initialize background tasks and state
-      Bootstrap::execute(&mut self.core)?;
 
       let mut event_rx = Event::init()?;
       let mut terminal = Terminal::new(TERMINAL_OPTIONS)?;
@@ -43,6 +43,8 @@ impl App {
       let mut events = Vec::with_capacity(Self::MAX_EVENTS);
       let mut last_render = Instant::now();
       let mut timeout = None;
+
+      Bootstrap.execute(&mut self.core)?;
 
       self.render(&mut terminal)?;
       loop {
@@ -70,16 +72,17 @@ impl App {
          if NEED_RENDER.load(Ordering::Relaxed) {
             let elapsed = last_render.elapsed();
 
-            if elapsed >= Self::FRAME_TIME {
+            if elapsed >= Self::FRAME_DURATION {
                self.render(&mut terminal)?;
                NEED_RENDER.store(false, Ordering::Relaxed);
                last_render = Instant::now();
             } else {
-               timeout = Some(Self::FRAME_TIME - elapsed);
+               timeout = Some(Self::FRAME_DURATION - elapsed);
             }
          }
 
          if self.core.should_quit {
+            self.quit()?;
             break;
          }
       }
@@ -96,38 +99,32 @@ impl App {
       Ok(())
    }
 
-   // System-level commands - called directly for performance
-   
-   pub(crate) fn quit(&mut self) -> color_eyre::Result<()> {
-      // Shutdown background tasks before quitting
+   fn quit(&mut self) -> color_eyre::Result<()> {
       self.core.tasks.shutdown();
-      self.core.should_quit = true;
       Ok(())
    }
 
-   pub(crate) fn resize(&mut self) -> color_eyre::Result<()> {
+   pub fn resize(&mut self) -> color_eyre::Result<()> {
+      self.request_render()?;
+      Ok(())
+   }
+
+   pub fn focus(&mut self) -> color_eyre::Result<()> {
+      Ok(())
+   }
+
+   pub fn paste(&mut self, _content: String) -> color_eyre::Result<()> {
+      Ok(())
+   }
+
+   pub fn request_render(&mut self) -> color_eyre::Result<()> {
       NEED_RENDER.store(true, Ordering::Relaxed);
       Ok(())
    }
 
-   pub(crate) fn focus(&mut self) -> color_eyre::Result<()> {
-      // TODO: Handle focus events
-      Ok(())
-   }
-
-   pub(crate) fn paste(&mut self, _content: String) -> color_eyre::Result<()> {
-      // TODO: Handle paste events
-      Ok(())
-   }
-
-   pub(crate) fn render_request(&mut self) -> color_eyre::Result<()> {
-      NEED_RENDER.store(true, Ordering::Relaxed);
-      Ok(())
-   }
-
-   fn render(&self, terminal: &mut Terminal) -> color_eyre::Result<()> {
+   fn render(&mut self, terminal: &mut Terminal) -> color_eyre::Result<()> {
       terminal.draw(|f| {
-         ui::render(f, &self.core);
+         let _ = ui::render(f, &mut self.core);
       })?;
       Ok(())
    }

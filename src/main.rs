@@ -1,14 +1,14 @@
 use crate::app::App;
 use crate::cli::CliArgs;
 
-mod actors;
 mod app;
 mod cli;
+mod client;
 mod command;
+mod commands;
 mod core;
 mod dispatcher;
 mod event;
-mod executor;
 mod keymap;
 mod tasks;
 mod terminal;

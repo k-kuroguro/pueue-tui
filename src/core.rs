@@ -1,17 +1,15 @@
 use parking_lot::RwLock;
+use ratatui::widgets::{ScrollbarState, TableState};
 use std::sync::Arc;
 
+use crate::cli::CliArgs;
+use crate::client::Client;
 use crate::keymap::Keymap;
 use crate::tasks::Tasks;
 
-/// Layer represents different UI modes/screens
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Layer {
-   /// Main task list view
    List,
-   /// Search mode (input prompt + filtered results)
-   Search,
-   /// Help popup overlay
    Help,
 }
 
@@ -26,64 +24,62 @@ pub struct Core {
    pub should_quit: bool,
    pub keymap: Keymap,
 
-   // Layer management (stack-based like yazi)
    layer_stack: Vec<Layer>,
 
-   // UI state
-   pub preview_visible: bool,
-   pub search_query: String,
-
-   // Background tasks
    pub tasks: Tasks,
 
-   // Current time (updated by background task)
-   pub current_time: Arc<RwLock<String>>,
+   pub pueue_tasks: Arc<[pueue_lib::Task]>,
+
+   pub pueue_client: Client,
+   pub pueue_log: Option<(usize, Arc<[u8]>)>,
+
+   pub list_state: (TableState, ScrollbarState),
+
+   pub log_preview: bool,
 }
 
 impl Core {
-   pub fn new() -> Self {
-      let current_time = Arc::new(RwLock::new(String::new()));
-
-      Self {
+   pub async fn new(options: &CliArgs) -> color_eyre::Result<Self> {
+      Ok(Self {
          should_quit: false,
          keymap: Keymap::new(),
          layer_stack: vec![Layer::List],
-         preview_visible: false,
-         search_query: String::new(),
          tasks: Tasks::new(),
-         current_time,
-      }
+         pueue_tasks: Arc::new([]),
+         pueue_client: Client::new(&options.config, &options.profile).await?,
+         pueue_log: None,
+         list_state: (TableState::new().with_selected(0), ScrollbarState::new(0)),
+         log_preview: false,
+      })
    }
 
-   /// Get the current active layer
+   pub fn layers(&self) -> &[Layer] {
+      &self.layer_stack
+   }
+
    pub fn layer(&self) -> Layer {
       *self.layer_stack.last().unwrap_or(&Layer::List)
    }
 
-   /// Push a new layer onto the stack (e.g., opening help or search)
    pub fn push_layer(&mut self, layer: Layer) {
       self.layer_stack.push(layer);
    }
 
-   /// Pop the current layer and return to the previous one
    pub fn pop_layer(&mut self) -> Layer {
       if self.layer_stack.len() > 1 {
          self.layer_stack.pop().unwrap()
       } else {
-         // Keep at least one layer (List)
          Layer::List
       }
    }
 
-   /// Replace the current layer (for switching between main screens)
-   pub fn switch_layer(&mut self, layer: Layer) {
-      if let Some(last) = self.layer_stack.last_mut() {
-         *last = layer;
-      }
+   pub fn selected_task_id(&self) -> Option<usize> {
+      let selected = self.list_state.0.selected()?;
+      self.pueue_tasks.get(selected).map(|task| task.id)
    }
 
-   /// Toggle preview visibility
-   pub fn toggle_preview(&mut self) {
-      self.preview_visible = !self.preview_visible;
+   pub fn selected_task(&self) -> Option<&pueue_lib::Task> {
+      let selected = self.list_state.0.selected()?;
+      self.pueue_tasks.get(selected)
    }
 }

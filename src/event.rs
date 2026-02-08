@@ -8,16 +8,14 @@ use crate::command::Command;
 static TX: OnceLock<mpsc::UnboundedSender<Event>> = OnceLock::new();
 pub static NEED_RENDER: AtomicBool = AtomicBool::new(false);
 
-#[derive(Debug)]
 pub enum Event {
-   Call(Command),
+   Call(Box<dyn Command>),
    Key(KeyEvent),
    Mouse(MouseEvent),
    Resize,
    Focus,
    Paste(String),
    Render,
-   Quit,
    Error(color_eyre::Report),
 }
 
@@ -34,4 +32,11 @@ impl Event {
          tx.send(self).ok();
       }
    }
+}
+
+#[macro_export]
+macro_rules! call {
+   ($cmd:expr) => {
+      $crate::event::Event::Call(Box::new($cmd)).emit()
+   };
 }

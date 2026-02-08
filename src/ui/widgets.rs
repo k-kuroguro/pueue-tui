@@ -1,3 +1,2 @@
 pub mod status_bar;
-
-pub use status_bar::StatusBar;
+pub mod task_table;
